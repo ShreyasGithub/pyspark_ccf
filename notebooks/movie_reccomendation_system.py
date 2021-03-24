@@ -37,6 +37,12 @@ ratings_data_frame = spark_session.read.csv('../data/ratings.csv', inferSchema=T
 # In[ ]:
 
 
+ratings_data_frame.count()
+
+
+# In[ ]:
+
+
 ratings_data_frame.printSchema()
 
 
@@ -49,6 +55,90 @@ ratings_data_frame.show(vertical=True, n=5)
 # In[ ]:
 
 
+ratings_data_frame = ratings_data_frame.dropna()
+ratings_data_frame.count()
+
+
+# In[ ]:
+
+
+ratings_data_frame.select('userId').distinct().count()
+
+
+# In[ ]:
+
+
+ratings_data_frame.select('movieId').distinct().count()
+
+
+# In[ ]:
+
+
+ratings_data_frame.createOrReplaceTempView("table1")
+spark_session.sql("""
+select movieId from table1
+group by movieId having count(*) > 10000;
+""").count()
+
+
+# In[ ]:
+
+
+movie_row_list = spark_session.sql("""
+select movieId from table1
+group by movieId having count(*) > 10000;
+""").collect()
+
+movie_list = [row['movieId'] for row in movie_row_list]
+
+
+# In[ ]:
+
+
+ratings_data_frame = ratings_data_frame.filter(ratings_data_frame['movieId'].isin(movie_list))
+
+
+# In[ ]:
+
+
+ratings_data_frame.count()
+
+
+# In[ ]:
+
+
+spark_session.sql("""
+select userId from table1
+group by userId having count(*) > 1000;
+""").count()
+
+
+# In[ ]:
+
+
+user_row_list = spark_session.sql("""
+select userId from table1
+group by userId having count(*) > 1000;
+""").collect()
+
+user_list = [row['userId'] for row in user_row_list]
+
+
+# In[ ]:
+
+
+ratings_data_frame = ratings_data_frame.filter(ratings_data_frame['userId'].isin(user_list))
+
+
+# In[ ]:
+
+
+ratings_data_frame.count()
+
+
+# In[ ]:
+
+
 train_data, test_data = ratings_data_frame.randomSplit([0.7, 0.3])
 
 
@@ -56,7 +146,7 @@ train_data, test_data = ratings_data_frame.randomSplit([0.7, 0.3])
 
 
 from pyspark.ml.recommendation import ALS
-model = ALS(maxIter=4, userCol="userId", itemCol="movieId", ratingCol="rating")
+model = ALS(maxIter=10, userCol="userId", itemCol="movieId", ratingCol="rating")
 
 
 # In[ ]:
@@ -74,7 +164,7 @@ test_data.head(1)
 # In[ ]:
 
 
-test_user_data = test_data.filter(test_data['userId'] == 1)
+test_user_data = test_data.filter(test_data['userId'] == 229)
 
 
 # In[ ]:
@@ -93,7 +183,7 @@ single_user = test_user_data.select(['movieId','userId'])
 
 
 reccomendations = model.transform(single_user)
-reccomendations.collect()
+reccomendations.orderBy('movieId').collect()
 
 
 # In[ ]:
@@ -105,13 +195,25 @@ from pyspark.ml.evaluation import RegressionEvaluator
 # In[ ]:
 
 
+test_data.count()
+
+
+# In[ ]:
+
+
 test_results = model.transform(test_data)
 
 
 # In[ ]:
 
 
-evaluator = RegressionEvaluator()
+test_results.head(5)
+
+
+# In[ ]:
+
+
+evaluator = RegressionEvaluator(labelCol='rating', predictionCol='prediction')
 print('RMSE')
 evaluator.evaluate(test_results)
 
@@ -133,5 +235,11 @@ evaluator.evaluate(test_results, {evaluator.metricName: "mae"})
 # In[ ]:
 
 
-test_user_data.select('ratings').describe().show()
+test_data.select('rating').describe().show()
+
+
+# In[ ]:
+
+
+
 
