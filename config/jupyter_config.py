@@ -43,7 +43,7 @@ def script_post_save(model, os_path, contents_manager, **kwargs):
         f.write(script)
 
 c.ContentsManager.root_dir = './'
-c.ContentsManager.pre_save_hook = scrub_output_pre_save
+#c.ContentsManager.pre_save_hook = scrub_output_pre_save
 c.FileContentsManager.post_save_hook = script_post_save
 
 
